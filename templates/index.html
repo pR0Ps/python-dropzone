@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.3/font/bootstrap-icons.css">
+    <script src="https://unpkg.com/dropzone@6.0.0-beta.1/dist/dropzone-min.js"></script>
+
+    <style>
+      /* Make the body cover the entire screen since it's where files are able to be dropped onto */
+      html, body {
+        height: 100%;
+      }
+
+      /* Prevent buttons from wrapping on the icon/text boundry */
+      button {
+        white-space: nowrap;
+      }
+
+      .container {
+        max-width: 1140px;
+        min-width: 400px;
+        padding-top: 3rem;
+      }
+
+      /* Set the size of the progress bars */
+      .progress {
+        width: 10rem;
+      }
+
+      #actions {
+        margin-top: 2em;
+        margin-bottom: 2em;
+      }
+
+      /* Hide the done button initially */
+      #files .done {
+        display: none;
+      }
+
+      /* Styles for when the upload finishes */
+      /* Hide the progress */
+      #files .dz-success .progress {
+        opacity: 0;
+        transition: opacity 1s linear;
+      }
+      /* Hide the cancel button and show the done button */
+      #files .dz-success .cancel {
+        display: none;
+      }
+      #files .dz-success .done {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>File uploader</h1>
+      <h2 class="lead">Drop files on the server</h2>
+
+      <div id="actions" class="row">
+        <div class="col-lg-7">
+          <span id="add" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i>
+            <span>Add files...</span>
+          </span>
+          <button type="submit" class="btn btn-primary start">
+            <i class="bi bi-cloud-upload"></i>
+            <span>Start upload</span>
+          </button>
+          <button type="reset" class="btn btn-danger cancel">
+            <i class="bi bi-x-circle"></i>
+            <span>Cancel</span>
+          </button>
+        </div>
+      </div>
+
+      <table class="table table-striped">
+        <tbody id="files"></tbody>
+      </table>
+
+      <template>
+        <tr>
+          <td style="width: 100%">
+            <p class="name" data-dz-name></p>
+            <strong class="error text-danger" data-dz-errormessage></strong>
+          </td>
+          <td>
+            <p class="size" data-dz-size></p>
+            <div class="progress">
+              <div
+                class="progress-bar progress-bar-striped progress-bar-animated"
+                style="width: 0%"
+                role="progressbar"
+                data-dz-uploadprogress
+              ></div>
+            </div>
+          </td>
+          <td style="vertical-align: middle">
+            <button type="button" data-dz-remove class="btn btn-danger cancel">
+              <i class="bi bi-x-circle"></i>
+              <span>Cancel</span>
+            </button>
+            <button type="button" data-dz-remove class="btn btn-success done">
+              <i class="bi bi-check-circle"></i>
+              <span>Done!</span>
+            </button>
+          </td>
+        </tr>
+      </template>
+
+      <script>
+        // Patch Dropzone.create to be able to handle adding <tr> templates
+        Dropzone.createElement = function (string) {
+          if (string.substr(0, 3) == '<tr'){
+              elm = document.createElement("tbody");
+          } else {
+              elm = document.createElement("div");
+          }
+          elm.innerHTML = string;
+          return elm.childNodes[0];
+        }
+
+        // Don't ask for confirmation to cancel
+        Dropzone.confirm = function(question, accepted, rejected) {
+          // TODO: send delete request to sever to clean up temp files if in partial mode?
+          accepted();
+        };
+
+        // Attach the dropzone to the body so files can be dropped anywhere on the page
+        var myDropzone = new Dropzone(document.body, {
+          url: "/",
+          method: "put",  // forceChunking is true so we'll only make idempotent chunk requests
+          paramName: "file",
+          maxFilesize: 1024 * 50, // 50GB
+          parallelUploads: 2,
+          createImageThumbnails: false,
+          previewTemplate: document.querySelector('template').innerHTML,
+          autoQueue: false,
+          chunking: true,
+          forceChunking: true,
+          parallelChunkUploads: true,
+          chunkSize: 1024 * 1024 * 5, // 5MB
+          retryChunks: true,
+          retryChunksLimit: 3,
+          previewsContainer: '#files',
+          clickable: '#add', // The element to add a file
+        })
+
+        // Setup the buttons for starting/stopping all transfers
+        document.querySelector('#actions .start').onclick = function () {
+          myDropzone.enqueueFiles(myDropzone.getAddedFiles());
+        }
+        document.querySelector('#actions .cancel').onclick = function () {
+          myDropzone.removeAllFiles(true)
+        }
+      </script>
+    </div>
+  </body>
+</html>
